@@ -5,33 +5,34 @@ A lightweight, production-grade Python ETL (Extract, Transform, Load) pipeline d
 ---
 
 ## Architecture Overview
-+-------------------+
-                  |   ogrenciler.csv  | (Raw / Dirty Ingestion)
-                  +---------+---------+
-                            |
-                            v
-                  +-------------------+
-                  |   ETL Pipeline    | (Type Casting & Validation)
-                  +----+---------+----+
-                       |         |
-        [Invalid Rows] |         | [Valid Clean Rows]
-                       v         v
- +-----------------------+     +-----------------------+
- |      hatalar.log      |     |        okul.db        |
- |  (Dead-Letter Queue)  |     |   (SQLite Database)   |
- +-----------------------+     +-----------+-----------+
-                                           |
-                                           v
-                               +-----------------------+
-                               |  add_grades.py (Mock) |
-                               +-----------+-----------+
-                                           |
-                                           v
-                               +-----------------------+
-                               |    query_join.py      | (INNER JOIN + Tabular Report)
-                               +-----------------------+
 
----
+```text
+                      +-------------------+
+                      |   ogrenciler.csv  | (Raw / Dirty Ingestion)
+                      +---------+---------+
+                                |
+                                v
+                      +-------------------+
+                      |   ETL Pipeline    | (Type Casting & Validation)
+                      +----+---------+----+
+                           |         |
+            [Invalid Rows] |         | [Valid Clean Rows]
+                           v         v
+     +-----------------------+     +-----------------------+
+     |      hatalar.log      |     |        okul.db        |
+     |  (Dead-Letter Queue)  |     |   (SQLite Database)   |
+     +-----------------------+     +-----------+-----------+
+                                               |
+                                               v
+                                   +-----------------------+
+                                   |  add_grades.py (Mock) |
+                                   +-----------+-----------+
+                                               |
+                                               v
+                                   +-----------------------+
+                                   |    query_join.py      | (INNER JOIN + Tabular Report)
+                                   +-----------------------+
+```
 
 ## Key Features
 
