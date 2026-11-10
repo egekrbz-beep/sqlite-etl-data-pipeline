@@ -1,55 +1,50 @@
-# SQLite Production-Grade ETL Pipeline & Relational Reporting
+# SQLite ETL Data Pipeline
 
-A lightweight, production-grade Python ETL (Extract, Transform, Load) pipeline demonstrating data ingestion, data sanitization, dead-letter queue (DLQ) error isolation, relational schema modeling with SQLite, and formatted SQL JOIN reporting.
-
----
-
-## Architecture Overview
-
-```text
-                      +-------------------+
-                      |   ogrenciler.csv  | (Raw / Dirty Ingestion)
-                      +---------+---------+
-                                |
-                                v
-                      +-------------------+
-                      |   ETL Pipeline    | (Type Casting & Validation)
-                      +----+---------+----+
-                           |         |
-            [Invalid Rows] |         | [Valid Clean Rows]
-                           v         v
-     +-----------------------+     +-----------------------+
-     |      hatalar.log      |     |        okul.db        |
-     |  (Dead-Letter Queue)  |     |   (SQLite Database)   |
-     +-----------------------+     +-----------+-----------+
-                                               |
-                                               v
-                                   +-----------------------+
-                                   |  add_grades.py (Mock) |
-                                   +-----------+-----------+
-                                               |
-                                               v
-                                   +-----------------------+
-                                   |    query_join.py      | (INNER JOIN + Tabular Report)
-                                   +-----------------------+
-```
-
-## Key Features
-
-- **Automated Ingestion & Sanitization (`pipeline.py`):** Reads CSV data, handles trailing whitespaces, performs safe type conversions, and isolates corrupted records.
-- **Dead-Letter Queue (DLQ) Pattern:** Quarantines corrupt rows into a structured log file (`hatalar.log`) without interrupting pipeline execution.
-- **Bulk Loading Performance:** Utilizes `cursor.executemany()` for batch insertion and transactional integrity.
-- **Relational Data Modeling (`add_grades.py`):** Establishes a secondary relational entity linked via Foreign Key / Primary Key constraints.
-- **SQL INNER JOIN Reporting (`query_join.py`):** Joins relational entities and renders a CLI reporting dashboard with dynamic `f-string` tabular padding.
+A modular, production-ready ETL (Extract, Transform, Load) pipeline implemented in Python and SQLite, designed with industry-standard separation of concerns, robust error handling, and idempotent loading.
 
 ---
 
-## File Structure
+## 🏗 Architecture & Workflow
 
 ```text
-├── .gitignore          # Excludes *.db, *.log, and runtime caches
-├── pipeline.py         # Ingestion, validation, and DLQ handling
-├── add_grades.py       # Secondary relational table generation
-├── query_join.py       # SQL INNER JOIN query and formatted dashboard
-├── sorgula.py          # Standalone verification query script
-└── ogrenciler.csv      # Sample dirty dataset for pipeline validation
+[ users_data.csv ]  (Raw CSV Source)
+        │
+        ▼ (Extract)
+[ extract.py ]      (CSV parsing via DictReader)
+        │
+        ▼ (Transform)
+[ transform.py ]    (Type casting, string normalization, range validation)
+        │
+        ▼ (Load)
+[ load.py ]         (Batch insertion with SQLite 'INSERT OR IGNORE')
+        │
+        ▼
+[ warehouse.db ]    (Relational database storage)
+        ▲
+        │ (Query)
+[ query.py ]        (Analytics and formatted terminal reporting)
+
+sqlite-etl-data-pipeline/
+├── database.py       # SQLite connection and schema initialization
+├── extract.py        # Extraction module: parses raw CSV data
+├── transform.py      # Transformation module: data cleaning & validation
+├── load.py           # Loading module: idempotent batch database writing
+├── pipeline.py       # Orchestrator: end-to-end pipeline execution & logging
+├── query.py          # Data retrieval and analytics reporting
+├── users_data.csv    # Source raw input dataset
+└── warehouse.db      # SQLite database file (created on runtime)
+
+⚙️ Key Engineering Highlights
+Decoupled Architecture: Each step of the ETL cycle is isolated in dedicated modules with distinct responsibilities.
+
+Idempotency: Safe repeated pipeline runs using INSERT OR IGNORE combined with UNIQUE email constraints to prevent duplicate entries.
+
+Data Cleansing: Strips whitespace, standardizes name casing (.title()), normalizes email formatting (.lower()), and enforces valid age limits.
+
+Defensive Error Handling: Uses try-except blocks with error reporting directed to sys.stderr and non-zero exit codes (sys.exit(1)).
+
+🚀 Getting Started
+1. Prerequisites
+Python 3.9+
+
+SQLite3 (bundled with standard Python installation)
