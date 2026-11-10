@@ -1,68 +1,44 @@
-import csv
-import sqlite3
+import sys
+from database import init_database
+from extract import extract_users_from_csv
+from transform import transform_user_data
+from load import load_users_to_database
 
-# ==================================================
-# 1. ODA: CSV'DEN VERİYİ OKUMA VE TEMİZLEME (EXTRACT + TRANSFORM)
-# ==================================================
 
-veriler = []
+def run_pipeline():
+    print("=" * 45)
+    print("Starting SQLite ETL Data Pipeline...")
+    print("=" * 45)
 
-with open('ogrenciler.csv', mode='r', encoding='utf-8') as dosya:
-    okuyucu = csv.reader(dosya)
-    next(okuyucu)  # Başlık satırını atla
+    try:
+        # Step 1: Initialize database schema
+        print("[1/4] Checking and creating database tables...")
+        init_database()
+
+        # Step 2: Extract raw data from CSV
+        print("[2/4] Extracting raw data from CSV...")
+        raw_users = extract_users_from_csv()
+        print(f"      -> Extracted {len(raw_users)} raw records.")
+
+        # Step 3: Transform and clean data
+        print("[3/4] Transforming, casting types, and validating...")
+        clean_users = transform_user_data(raw_users)
+        print(f"      -> Cleaned {len(clean_users)} valid records.")
+
+        # Step 4: Load cleaned data into database
+        print("[4/4] Loading cleaned records into warehouse.db...")
+        inserted_count = load_users_to_database(clean_users)
+        print(f"      -> {inserted_count} records inserted (duplicates ignored).")
+
+        print("=" * 45)
+        print("Pipeline execution finished successfully!")
+        print("=" * 45)
+
+    except Exception as error:
+        print(f"\n[ERROR] Pipeline failed: {error}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    run_pipeline()
     
-    for satir in okuyucu:
-        # Bekçi 1: Metinleri temizle ve standartlaştır
-        isim = satir[0].strip().capitalize()
-        sehir = satir[2].strip().capitalize()
-        
-        # Bekçi 2: İsmi olmayanları atla
-        if not isim:
-            print("Filtre: İsimsiz satır tespit edildi ve elendi.")
-            with open('hatalar.log', mode='a', encoding='utf-8') as log_dosyasi:
-                log_dosyasi.write("HATA: İsim alanı boş bırakılmış!\n")
-            continue
-            
-        # Bekçi 3: Yaşı sayı olmayanları yakala ve atla
-        try:
-            yas = int(satir[1])
-        except ValueError:
-            print(f"Filtre: {isim} adlı kayıtta yaş sayısal değil ('{satir[1]}'), elendi.")
-            with open("hatalar.log", mode='a', encoding='utf-8') as log_dosyasi:
-                log_dosyasi.write(f"HATA: {isim} adlı kayıtta yaş sayısal değil ('{satir[1]}')\n")
-            continue
-            
-        # Not ortalamasını ondalıklı sayıya çevir
-        not_ort = float(satir[3])
-        
-        # 3 bekçiden de geçen temiz veriyi sepete at
-        veriler.append((isim, yas, sehir, not_ort))
-
-print(f"\nTemizlik Tamamlandı! Sepetteki temiz öğrenci sayısı: {len(veriler)}")
-
-# ==================================================
-# 2. ODA: VERİTABANINA AKTARMA (LOAD)
-# ==================================================
-
-baglanti = sqlite3.connect("okul.db")
-cursor = baglanti.cursor()
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS ogrenciler (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    isim TEXT,
-    yas INTEGER,
-    sehir TEXT,
-    not_ortalamasi REAL
-)
-""")
-
-cursor.executemany("""
-INSERT INTO ogrenciler (isim, yas, sehir, not_ortalamasi)
-VALUES (?, ?, ?, ?)
-""", veriler)
-
-baglanti.commit()
-baglanti.close()
-
-print("Veritabanına aktarım başarılı!")
